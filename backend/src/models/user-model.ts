@@ -25,6 +25,11 @@ const userSchema = new mongoose.Schema(
       enum: Object.values(UserRole),
       default: UserRole.SALES
     }
+    ,
+    refreshTokens: {
+      type: [String],
+      default: []
+    }
   },
   {
     timestamps: true

@@ -23,6 +23,12 @@ const leadSchema = new mongoose.Schema(
       type: String,
       required: true
     },
+    phone: {
+      type: String
+    },
+    company: {
+      type: String
+    },
     status: {
       type: String,
       enum: Object.values(LeadStatus),
@@ -33,10 +39,21 @@ const leadSchema = new mongoose.Schema(
       enum: Object.values(LeadSource),
       required: true
     }
+    ,
+    notes: {
+      type: String
+    },
+    assignedUser: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true
+    }
   },
   {
     timestamps: true
   }
 );
+
+leadSchema.index({ name: "text", email: "text", company: "text" });
 
 export default mongoose.model("Lead", leadSchema);

@@ -1,11 +1,20 @@
 import type { Request, Response } from "express";
 import Lead from "../models/lead-model.js";
+import type { AuthRequest } from "../middlewares/auth-middleware.js";
 
 export const createLead = async (
-  req: Request,
+  req: AuthRequest,
   res: Response
 ) => {
-  const lead = await Lead.create(req.body);
+  const user = req.user;
+  const { name, email, status, source } = req.body;
+  const lead = await Lead.create({
+    name,
+    email,
+    status,
+    source,
+    assignedUser: user.id
+  });
 
   res.status(201).json({
     success: true,
@@ -18,58 +27,54 @@ export const getLeads = async (
   res: Response
 ) => {
   const {
-    page = 1,
-    limit = 10,
+    page = "1",
+    limit = "10",
     status,
     source,
     search,
-    sort = "latest"
+    sort = "latest",
+    startDate,
+    endDate
   } = req.query;
 
   const query: any = {};
 
-  if (status) {
-    query.status = status;
-  }
-
-  if (source) {
-    query.source = source;
-  }
+  if (status) query.status = status;
+  if (source) query.source = source;
 
   if (search) {
-    query.$or = [
-      {
-        name: {
-          $regex: search,
-          $options: "i"
-        }
-      },
-      {
-        email: {
-          $regex: search,
-          $options: "i"
-        }
-      }
-    ];
+    query.$text = { $search: String(search) };
   }
 
-  const sortOption =
-    sort === "latest"
-      ? { createdAt: -1 }
-      : { createdAt: 1 };
+  if (startDate || endDate) {
+    query.createdAt = {} as any;
+    if (startDate) query.createdAt.$gte = new Date(String(startDate));
+    if (endDate) query.createdAt.$lte = new Date(String(endDate));
+  }
 
-  const leads = await Lead.find(query)
-    .sort()
-    .skip((Number(page) - 1) * Number(limit))
-    .limit(Number(limit));
+  const sortOption: any = sort === "latest" ? { createdAt: -1 } : { createdAt: 1 };
+
+  const pageNum = Math.max(1, Number(page));
+  const lim = Math.max(1, Math.min(100, Number(limit)));
 
   const total = await Lead.countDocuments(query);
 
+  const leads = await Lead.find(query)
+    .sort(sortOption as any)
+    .skip((pageNum - 1) * lim)
+    .limit(lim)
+    .populate("assignedUser", "name email role");
+
+  const pages = Math.ceil(total / lim);
+
   res.json({
     success: true,
-    page: Number(page),
-    totalPages: Math.ceil(total / Number(limit)),
     total,
+    page: pageNum,
+    pages,
+    limit: lim,
+    hasNextPage: pageNum < pages,
+    hasPrevPage: pageNum > 1,
     data: leads
   });
 };
@@ -87,20 +92,27 @@ export const getLead = async (
 };
 
 export const updateLead = async (
-  req: Request,
+  req: AuthRequest,
   res: Response
 ) => {
-  const lead = await Lead.findByIdAndUpdate(
-    req.params.id,
-    req.body,
-    {
-      new: true
+  const lead = await Lead.findById(req.params.id);
+
+  if (!lead) {
+    return res.status(404).json({ success: false, message: "Lead not found" });
+  }
+
+  // Sales users can only update assigned leads
+  if (req.user.role !== "admin") {
+    if (!lead.assignedUser || String(lead.assignedUser) !== String(req.user.id)) {
+      return res.status(403).json({ success: false, message: "Forbidden" });
     }
-  );
-  res.json({
-    success: true,
-    data: lead
-  });
+  }
+
+  Object.assign(lead, req.body);
+
+  const updated = await lead.save();
+
+  res.json({ success: true, data: updated });
 };
 
 export const deleteLead = async (

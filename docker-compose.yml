@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: smart-dashboard-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: smart-dashboard
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - smart-dashboard-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: smart-dashboard-backend
+    ports:
+      - "5000:5000"
+    environment:
+      PORT: 5000
+      MONGO_URI: mongodb://mongodb:27017/smart-dashboard
+      JWT_SECRET: your_jwt_secret_key_change_this_in_production
+      JWT_REFRESH_SECRET: your_jwt_refresh_secret_key_change_this_in_production
+      CLIENT_URL: http://localhost:5173
+      NODE_ENV: development
+    depends_on:
+      - mongodb
+    networks:
+      - smart-dashboard-network
+    volumes:
+      - ./backend/src:/app/src
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: smart-dashboard-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:5000/api/v1
+    depends_on:
+      - backend
+    networks:
+      - smart-dashboard-network
+    volumes:
+      - ./frontend/src:/app/src
+
+volumes:
+  mongodb_data:
+
+networks:
+  smart-dashboard-network:
+    driver: bridge
