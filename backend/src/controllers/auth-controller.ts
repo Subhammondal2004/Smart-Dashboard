@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import User from "../models/user-model.js";
 import {
   generateAccessToken,
-  generateRefreshToken
+  generateRefreshToken,
 } from "../utils/generateToken.js";
 import jwt from "jsonwebtoken";
 
@@ -11,13 +11,10 @@ const cookieOptions: any = {
   httpOnly: true,
   secure: process.env.NODE_ENV === "production",
   sameSite: "lax",
-  maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 };
 
-export const register = async (
-  req: Request,
-  res: Response
-) => {
+export const register = async (req: Request, res: Response) => {
   const { name, email, password, role } = req.body;
 
   const existingUser = await User.findOne({ email });
@@ -25,7 +22,7 @@ export const register = async (
   if (existingUser) {
     return res.status(400).json({
       success: false,
-      message: "User already exists"
+      message: "User already exists",
     });
   }
 
@@ -35,7 +32,7 @@ export const register = async (
     name,
     email,
     password: hashedPassword,
-    role
+    role,
   });
 
   const accessToken = generateAccessToken(user.id, user.role);
@@ -48,8 +45,8 @@ export const register = async (
   res.cookie("accessToken", accessToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 15 * 60 * 1000 // 15 minutes
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    maxAge: 15 * 60 * 1000, // 15 minutes
   });
 
   // refresh token cookie (longer)
@@ -61,15 +58,12 @@ export const register = async (
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role
-    }
+      role: user.role,
+    },
   });
 };
 
-export const login = async (
-  req: Request,
-  res: Response
-) => {
+export const login = async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
   const user = await User.findOne({ email });
@@ -77,19 +71,16 @@ export const login = async (
   if (!user) {
     return res.status(400).json({
       success: false,
-      message: "Invalid credentials"
+      message: "Invalid credentials",
     });
   }
 
-  const isMatch = await bcrypt.compare(
-    password,
-    user.password
-  );
+  const isMatch = await bcrypt.compare(password, user.password);
 
   if (!isMatch) {
     return res.status(400).json({
       success: false,
-      message: "Invalid credentials"
+      message: "Invalid credentials",
     });
   }
 
@@ -102,8 +93,8 @@ export const login = async (
   res.cookie("accessToken", accessToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 15 * 60 * 1000
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    maxAge: 15 * 60 * 1000,
   });
 
   res.cookie("refreshToken", refreshToken, cookieOptions);
@@ -114,28 +105,25 @@ export const login = async (
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role
-    }
+      role: user.role,
+    },
   });
 };
 
-export const refreshToken = async (
-  req: Request,
-  res: Response
-) => {
+export const refreshToken = async (req: Request, res: Response) => {
   const token = req.cookies?.refreshToken;
 
   if (!token) {
     return res.status(401).json({
       success: false,
-      message: "Unauthorized"
+      message: "Unauthorized",
     });
   }
 
   try {
     const decoded = jwt.verify(
       token,
-      process.env.JWT_REFRESH_SECRET as string
+      process.env.JWT_REFRESH_SECRET as string,
     ) as any;
 
     const user = await User.findById(decoded.id);
@@ -143,7 +131,7 @@ export const refreshToken = async (
     if (!user || !user.refreshTokens.includes(token)) {
       return res.status(401).json({
         success: false,
-        message: "Unauthorized"
+        message: "Unauthorized",
       });
     }
 
@@ -152,8 +140,8 @@ export const refreshToken = async (
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 15 * 60 * 1000
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 15 * 60 * 1000,
     });
 
     return res.json({
@@ -162,36 +150,34 @@ export const refreshToken = async (
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role
-      }
+        role: user.role,
+      },
     });
-
   } catch (error: any) {
     console.log(error);
 
     return res.status(401).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
 
-export const logout = async (
-  req: Request,
-  res: Response
-) => {
+export const logout = async (req: Request, res: Response) => {
   const token = req.cookies?.refreshToken;
 
   if (token) {
     try {
       const decoded: any = await import("jsonwebtoken").then((j) =>
-        j.verify(token, process.env.JWT_REFRESH_SECRET as string)
+        j.verify(token, process.env.JWT_REFRESH_SECRET as string),
       );
 
       const user = await User.findById(decoded.id);
 
       if (user) {
-        user.refreshTokens = user.refreshTokens.filter((t: string) => t !== token);
+        user.refreshTokens = user.refreshTokens.filter(
+          (t: string) => t !== token,
+        );
         await user.save();
       }
     } catch (err) {
