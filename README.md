@@ -6,9 +6,9 @@ A production-grade full-stack CRM and Lead Management Dashboard built using the 
 
 # Live Demo
 
-Frontend: https://your-frontend-url.com
+Frontend: https://smart-dashboard-phi-seven.vercel.app
 
-Backend API: https://your-api-url.com
+Backend API: https://smart-dashboard-0c38.onrender.com/api/v1
 
 ---
 
@@ -277,7 +277,7 @@ docker compose up --build
 Base URL:
 
 ```bash id="xasd12"
-http://localhost:5000/api/v1
+https://smart-dashboard-phi-seven.vercel.app
 ```
 
 ---
